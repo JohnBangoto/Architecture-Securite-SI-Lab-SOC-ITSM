@@ -6,7 +6,7 @@ L'infrastructure réseau repose sur une politique de **Default Deny**. Par défa
 Nous appliquons le principe du **moindre privilège** :
 * **Isolation stricte** : Les segments `DATA_ZONE` et `SOC_ZONE` ne communiquent que via des ports spécifiques.
 * **Filtrage État (Stateful)** : Le pare-feu autorise automatiquement le trafic retour pour les connexions établies.
-* **Priorisation** : Les règles de diagnostic (ICMP) sont journalisées pour détecter toute tentative de reconnaissance (network scanning).
+* **Priorisation du Diagnostic** : Les règles ICMP (Ping) sont autorisées et journalisées sur chaque interface pour faciliter la maintenance et détecter toute tentative de reconnaissance (network scanning).
 
 ---
 
@@ -15,60 +15,47 @@ Nous appliquons le principe du **moindre privilège** :
 
 | Action | Protocole | Source | Port | Destination | Description |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **PASS** | TCP | `DATA_ZONE` | 10051 | `172.16.20.100` | **Zabbix Trapper** : Envoi des métriques. |
-| **PASS** | ICMP | `DATA_ZONE` | Echo Req | Any | **Ping** : Diagnostic réseau autorisé. |
-| **PASS** | TCP | `DATA_ZONE` | 1514-1515 | `172.16.20.100` | **Wazuh** : Logs (1514) et Enrollment (1515). |
+| **PASS** | TCP | `DATA_ZONE subnets` | 10051 | `172.16.20.100` | **Zabbix Trapper** : Envoi des métriques vers le SOC. |
+| **PASS** | ICMP | `DATA_ZONE subnets` | * | `*` | **Ping** : Diagnostic réseau autorisé. |
+| **PASS** | TCP | `DATA_ZONE subnets` | 1514-1515 | `172.16.20.100` | **Wazuh Agents** : Logs et Enrôlement. |
+
+> **Note de durcissement** : Les règles "Default allow" d'usine ont été désactivées (grisées) pour forcer le passage par ces règles explicites.
+![Règles DATA_ZONE](../../docs/assets/pfsense/RData_zone.png)
+
+---
 
 ## 📋 Matrice des Flux : SOC_ZONE (Sortant)
 *Contrôle des communications depuis les serveurs de supervision vers l'infrastructure et l'extérieur.*
 
 | Action | Protocole | Source | Port | Destination | Description |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **PASS** | TCP/UDP | `SOC_ZONE` | `AD_PORTS` | `172.16.10.10` | **Services AD** : Kerberos, LDAP, SMB via Alias. |
-| **PASS** | ICMP | `SOC_ZONE` | Echo Req | Any | **Ping** : Diagnostic réseau autorisé. |
-| **PASS** | TCP/UDP | `SOC_ZONE` | 53 (DNS) | `172.16.10.10` | **DNS** : Résolution de noms via le DC25. |
-| **PASS** | TCP | `SOC_ZONE` | 443 | Any | **Updates** : Mises à jour des signatures (WAN). |
+| **PASS** | TCP/UDP | `SOC_ZONE subnets` | `AD_PORTS` | `172.16.10.10` | **Services AD** : Kerberos, LDAP, SMB via Alias. |
+| **PASS** | ICMP | `SOC_ZONE subnets` | * | `*` | **Ping** : Diagnostic réseau autorisé. |
+| **PASS** | TCP/UDP | `SOC_ZONE subnets` | 53 (DNS) | `172.16.10.10` | **DNS** : Résolution via le DC25. |
+| **PASS** | TCP | `SOC_ZONE subnets` | 443 | Any | **Updates** : Mises à jour des signatures (WAN). |
+
+> ![Règles SOC_ZONE](../../docs/assets/pfsense/RSOC_ZONE.png)
 
 ---
 
 ## ⚙️ Implémentation technique
 
-L'application des règles suit l'ordre de traitement **Top-Down**. Pour chaque zone, les accès génériques ont été révoqués au profit d'ouvertures granulaires avec journalisation active.
+### 1. Optimisation via les Alias
+Un alias nommé **`AD_PORTS`** a été configuré pour regrouper les ports essentiels de l'Active Directory, assurant une meilleure lisibilité de la matrice de flux :
+* **Ports inclus** : 88 (Kerberos), 389 (LDAP), 445 (SMB).
+![ADPORTS](../../docs/assets/pfsense/ADPORTS.png)
 
-### 1. Durcissement de la DATA_ZONE
-Le verrouillage est confirmé par la désactivation des règles "Default allow" d'usine (grisées sur l'interface). Tout flux non répertorié est automatiquement rejeté.
+### 2. Sécurité Périmétrale (Interface WAN)
+L'interface WAN est configurée pour rejeter systématiquement le trafic provenant d'adresses non routables sur l'Internet public afin de prévenir l'IP Spoofing.
 
-![Règles DATA_ZONE finalisées](../../docs/assets/pfsense/DATA_ZONE.png)
-
-### 2. Optimisation de la SOC_ZONE via Aliases
-Pour la `SOC_ZONE`, un alias nommé `AD_PORTS` regroupe les flux Kerberos, LDAP et SMB vers le contrôleur de domaine (`172.16.10.10`). Cette méthode assure une meilleure lisibilité de la politique de sécurité.
-
-![Règles SOC_ZONE finalisées](../../docs/assets/pfsense/RSOC_ZONE.png)
-
-### 3. Stratégie de Journalisation (Logging)
-L'option **Log** est activée sur chaque règle métier. Cette visibilité est essentielle pour :
-* **L'auditabilité** : Traçabilité des flux critiques.
-* **Le SOC** : Alimentation du SIEM pour la détection d'anomalies réseau.
-
-## 🛡️ Protection de l'interface WAN (Périmètre)
-
-En complément des règles de filtrage interne, des mesures de sécurité ont été appliquées sur l'interface WAN pour protéger l'infrastructure contre les menaces externes courantes.
-
-### 1. Blocage des réseaux privés et non routables
-L'interface WAN est configurée pour rejeter systématiquement le trafic provenant d'adresses qui ne devraient pas exister sur l'Internet public.
-
-* **Block RFC1918 Private Networks** : Cette option bloque les adresses privées (ex: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) d'entrer via le WAN. Cela empêche les attaques de type *spoofing* où un attaquant externe tenterait d'utiliser une IP interne pour contourner le filtrage.
-* **Block Bogon Networks** : Bloque les réseaux non attribués par l'IANA ou réservés.
+* **Block RFC1918** : Bloque les plages privées (10/8, 172.16/12, 192.168/16).
+* **Block Bogon Networks** : Bloque les réseaux non attribués par l'IANA.
 
 ![Configuration du blocage WAN](../../docs/assets/pfsense/block.png)
-> *Note : Dans le cadre de ce lab, ces options sont décochées sur la capture (voir `block.png`) car le pfSense est lui-même derrière un hyperviseur utilisant un adressage privé pour le WAN. En environnement de production réel, ces cases doivent impérativement être cochées.*
-
+> *Note : Dans ce lab, ces options sont décochées car le WAN du pfSense est lui-même sur un segment privé de l'hyperviseur.*
 
 ---
 
-## 🧪 Tests de Validation (QA)
-1. **Flux Métier** : Confirmation de la remontée des agents Wazuh et Zabbix vers le manager.
-2. **Authentification** : Validation de la résolution DNS et de la communication AD depuis le SOC vers le DC25.
-3. **Étanchéité** : Vérification du blocage des flux non autorisés (ex: navigation Web depuis la DATA_ZONE).
+* **Journalisation (Logging)** : L'option "Log" est activée sur chaque règle métier. Cette visibilité est essentielle pour alimenter le SIEM (Wazuh) et permettre la détection d'anomalies réseau.
+* **Anti-Lockout** : Une règle spécifique protège l'accès à l'interface d'administration (80/443) pour éviter toute perte de contrôle du pare-feu depuis le segment d'administration.
 
-> **Note :** L'accès à l'interface de gestion (WebGUI) est protégé par HTTPS et restreint via la règle "Anti-Lockout" sur le segment d'administration.
