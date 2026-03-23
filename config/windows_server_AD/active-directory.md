@@ -59,6 +59,8 @@ Le gestionnaire de serveur affiche désormais les rôles **AD DS** et **DNS** en
 L'annuaire est prêt à être administré. La racine du domaine `lab.local` est visible et fonctionnelle.
 ![Vue de l'annuaire lab.local](../../docs/assets/Windows_server_AD/apresND.png)
 
+Le tableau de bord après la promotion de domaine montrant les services deployés.
+
 ---
 
 ## 🛡️ Justification SSI (Sécurité)
