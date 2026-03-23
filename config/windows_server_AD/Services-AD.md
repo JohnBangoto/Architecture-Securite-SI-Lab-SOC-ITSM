@@ -30,8 +30,6 @@ Le rôle **Active Directory Domain Services** ainsi que les outils d'administrat
 Le tableau de bord initial (avant promotion) montre les services prêts à être configurés.
 ![Dashboard Server Manager Initial](../../docs/assets/Windows_server_AD/Dashacad.png)
 
-Une fois les binaires installés, le système demande une configuration post-déploiement (Promotion).
-![Rôles installés avec succès](../../docs/assets/Windows_server_AD/ajoutapre.png)
 
 ---
 
@@ -59,7 +57,8 @@ Le gestionnaire de serveur affiche désormais les rôles **AD DS** et **DNS** en
 L'annuaire est prêt à être administré. La racine du domaine `lab.local` est visible et fonctionnelle.
 ![Vue de l'annuaire lab.local](../../docs/assets/Windows_server_AD/apresND.png)
 
-Le tableau de bord après la promotion de domaine montrant les services deployés.
+Le tableau de bord après la promotion de domaine.
+![Rôles installés avec succès](../../docs/assets/Windows_server_AD/ajoutapre.png)
 
 ---
 
