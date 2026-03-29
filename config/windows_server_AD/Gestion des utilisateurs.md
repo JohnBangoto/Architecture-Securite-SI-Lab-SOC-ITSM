@@ -625,7 +625,7 @@ lab.local
     ├── VT-GP (Security Group - Global)  ← JDOUGS
     ├── THOMAS TS. SHELBY    → DR-GP | Home: Z: → \\Dc25\personnels\TSHELBY
     ├── ARTHUR AS. SHELBY    → DR-GP | Home: Z: → \\Dc25\personnels\ASHELBY
-    └── JOHNNY JD. DOGS      → VT-GP | Home: Z: → \\Dc25\personnels\JDOUGS
+    └── JOHNNY JD. DOUGS      → VT-GP | Home: Z: → \\Dc25\personnels\JDOUGS
 ```
 
 ### Matrice des permissions — Dossiers partagés
