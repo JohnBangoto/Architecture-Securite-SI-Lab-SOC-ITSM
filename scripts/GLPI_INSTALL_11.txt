@@ -1,0 +1,243 @@
+#!/bin/bash
+
+# ==============================================================================
+# GLPI 11 INSTALLER - UBUNTU 22.04 (JAMMY) + ACCÈS DIRECT
+# ==============================================================================
+
+# Arrêt du script à la première erreur
+set -e
+
+# Vérification root
+if [ "$EUID" -ne 0 ]; then 
+  echo -e "\033[0;31mVeuillez exécuter en tant que root.\033[0m"
+  exit 1
+fi
+
+# --- Variables de configuration ---
+GLPI_VERSION="11.0.5"
+DB_NAME="glpidb"
+DB_USER="glpiuser"
+DB_PASS="StrongPassword123!" # <--- CHANGEZ CECI
+GLPI_LANG="fr_FR"
+GLPI_URL="https://github.com/glpi-project/glpi/releases/download/${GLPI_VERSION}/glpi-${GLPI_VERSION}.tgz"
+INSTALL_DIR="/var/www/html/glpi"
+BACKUP_DIR="/var/backups/glpi"
+RETENTION_DAYS=14
+PHP_VERSION="8.3"
+
+# Couleurs
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo -e "${CYAN}Démarrage de l'installation GLPI (Version ${GLPI_VERSION})...${NC}"
+
+# ==============================================================================
+# 1. SYSTÈME, DÉPENDANCES ET DÉPÔTS
+# ==============================================================================
+echo -e "${GREEN}[1/10] Mise à jour du système et des dépendances...${NC}"
+
+apt-get update -q
+
+apt-get install -y wget gnupg2 lsb-release ca-certificates apt-transport-https \
+    unzip acl cron sudo software-properties-common
+
+# Ajout du dépôt PHP via PPA officiel Ubuntu (évite le blocage de packages.sury.org)
+echo -e "${GREEN}[+] Ajout du dépôt PHP 8.3 (PPA ondrej/php)...${NC}"
+add-apt-repository -y ppa:ondrej/php
+apt-get update -q
+
+# Installation de la pile LAMP
+apt-get install -y locales-all 2>/dev/null || apt-get install -y locales
+apt-get install -y apache2 mariadb-server \
+    php${PHP_VERSION} php${PHP_VERSION}-{curl,gd,mbstring,xml,intl,ldap,bz2,zip,mysql,bcmath,soap,gmp}
+
+# Génération des locales
+echo -e "${GREEN}[+] Génération des locales...${NC}"
+export LANG=fr_FR.UTF-8
+export LC_ALL=fr_FR.UTF-8
+if command -v locale-gen &> /dev/null; then
+    sed -i '/fr_FR.UTF-8/s/^# //g' /etc/locale.gen
+    locale-gen
+    update-locale LANG=fr_FR.UTF-8
+fi
+
+a2enmod rewrite
+systemctl start mariadb
+systemctl enable mariadb
+
+# ==============================================================================
+# 2. CONFIGURATION DE LA BASE DE DONNÉES
+# ==============================================================================
+echo -e "${GREEN}[2/10] Configuration de la base de données...${NC}"
+mysql -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';"
+mysql -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
+mysql -e "FLUSH PRIVILEGES;"
+
+# ==============================================================================
+# 3. INSTALLATION DES FICHIERS GLPI
+# ==============================================================================
+echo -e "${GREEN}[3/10] Téléchargement et extraction de GLPI ${GLPI_VERSION}...${NC}"
+cd /tmp
+rm -f glpi.tgz
+
+wget -q --show-progress "${GLPI_URL}" -O glpi.tgz
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}[!] Échec du téléchargement. Vérifiez la connexion internet.${NC}"
+    exit 1
+fi
+
+# Nettoyage d'une installation précédente
+if [ -d "$INSTALL_DIR" ]; then
+    rm -rf "$INSTALL_DIR"
+fi
+
+tar -xzf glpi.tgz -C /var/www/html/
+
+# ==============================================================================
+# 4. CONFIGURATION PHP
+# ==============================================================================
+echo -e "${GREEN}[4/10] Application de la configuration PHP...${NC}"
+CONF_DIR="/etc/php/${PHP_VERSION}/apache2/conf.d"
+CLI_CONF_DIR="/etc/php/${PHP_VERSION}/cli/conf.d"
+
+create_php_conf() {
+    local target_dir=$1
+    if [ -d "$target_dir" ]; then
+        cat > "$target_dir/99-glpi-custom.ini" <<EOF
+upload_max_filesize = 20M
+post_max_size = 20M
+max_execution_time = 300
+max_input_vars = 5000
+memory_limit = 512M
+session.cookie_httponly = on
+date.timezone = Europe/Paris
+EOF
+    fi
+}
+create_php_conf "$CONF_DIR"
+create_php_conf "$CLI_CONF_DIR"
+
+# ==============================================================================
+# 5. VIRTUALHOST APACHE (ACCÈS DIRECT)
+# ==============================================================================
+echo -e "${GREEN}[5/10] Configuration d'Apache pour accès direct...${NC}"
+
+# Désactivation du site par défaut
+a2dissite 000-default.conf > /dev/null 2>&1
+
+# Création du VirtualHost GLPI
+cat > /etc/apache2/sites-available/glpi.conf <<EOF
+<VirtualHost *:80>
+    ServerAdmin admin@localhost
+    DocumentRoot /var/www/html/glpi/public
+
+    <Directory /var/www/html/glpi/public>
+        Options FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog \${APACHE_LOG_DIR}/error.log
+    CustomLog \${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+EOF
+
+# Activation du nouveau site
+a2ensite glpi.conf
+
+# ==============================================================================
+# 6. CORRECTION DU ROUTAGE
+# ==============================================================================
+echo -e "${GREEN}[6/10] Correction du routage...${NC}"
+mkdir -p /var/www/html/glpi/public
+
+# .htaccess pour la racine
+cat > /var/www/html/glpi/public/.htaccess <<EOF
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . index.php [L]
+</IfModule>
+EOF
+
+# ==============================================================================
+# 7. PERMISSIONS ET INSTALLATION EN BASE
+# ==============================================================================
+echo -e "${GREEN}[7/10] Définition des permissions et installation en BDD...${NC}"
+
+chown -R www-data:www-data ${INSTALL_DIR}
+find ${INSTALL_DIR} -type d -exec chmod 755 {} \;
+find ${INSTALL_DIR} -type f -exec chmod 644 {} \;
+chmod -R 775 ${INSTALL_DIR}/config ${INSTALL_DIR}/files ${INSTALL_DIR}/marketplace
+
+cd ${INSTALL_DIR}
+
+echo -e "${CYAN}Lancement de l'installation en console (utilisateur www-data)...${NC}"
+
+sudo -u www-data \
+    php bin/console glpi:database:install \
+    --db-host=localhost \
+    --db-name=${DB_NAME} \
+    --db-user=${DB_USER} \
+    --db-password=${DB_PASS} \
+    --default-language=${GLPI_LANG} \
+    --force \
+    --no-interaction
+
+# ==============================================================================
+# 8. SÉCURISATION
+# ==============================================================================
+echo -e "${GREEN}[8/10] Suppression des fichiers d'installation...${NC}"
+rm -f "${INSTALL_DIR}/install/install.php"
+rm -f "${INSTALL_DIR}/public/install/install.php"
+
+# ==============================================================================
+# 9. REDÉMARRAGE DES SERVICES
+# ==============================================================================
+echo -e "${GREEN}[9/10] Redémarrage d'Apache...${NC}"
+systemctl restart apache2
+
+# ==============================================================================
+# 10. SAUVEGARDE AUTOMATIQUE
+# ==============================================================================
+echo -e "${GREEN}[10/10] Configuration de la sauvegarde automatique...${NC}"
+mkdir -p ${BACKUP_DIR}
+chmod 700 ${BACKUP_DIR}
+BACKUP_SCRIPT="/usr/local/bin/glpi-backup.sh"
+
+cat > ${BACKUP_SCRIPT} <<EOF
+#!/bin/bash
+BACKUP_DIR="${BACKUP_DIR}"
+DB_NAME="${DB_NAME}"
+DB_USER="${DB_USER}"
+DB_PASS="${DB_PASS}"
+FILES_DIR="${INSTALL_DIR}/files"
+TIMESTAMP=\$(date +"%Y-%m-%d_%H-%M-%S")
+
+if command -v mysqldump &> /dev/null; then
+    mysqldump -u"\$DB_USER" -p"\$DB_PASS" "\$DB_NAME" | gzip > "\$BACKUP_DIR/glpi_db_\$TIMESTAMP.sql.gz"
+fi
+tar -czf "\$BACKUP_DIR/glpi_files_\$TIMESTAMP.tar.gz" -C "\$FILES_DIR" .
+find "\$BACKUP_DIR" -type f -name "*.gz" -mtime +${RETENTION_DAYS} -delete
+EOF
+
+chmod +x ${BACKUP_SCRIPT}
+echo "0 2 * * * root ${BACKUP_SCRIPT}" > /etc/cron.d/glpi-backup
+
+# ==============================================================================
+# RÉSUMÉ FINAL
+# ==============================================================================
+IP_ADDR=$(hostname -I | cut -d' ' -f1)
+
+echo -e "============================================================"
+echo -e "${GREEN}INSTALLATION GLPI ${GLPI_VERSION} TERMINÉE${NC}"
+echo -e "============================================================"
+echo -e "1. Accès GLPI : ${CYAN}http://${IP_ADDR}/${NC}"
+echo -e "2. Utilisateur : ${CYAN}glpi${NC} / Mot de passe : ${CYAN}glpi${NC}"
+echo -e "============================================================"
