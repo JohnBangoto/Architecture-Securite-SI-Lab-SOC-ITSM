@@ -24,6 +24,8 @@ INSTALL_DIR="/var/www/html/glpi"
 BACKUP_DIR="/var/backups/glpi"
 RETENTION_DAYS=14
 PHP_VERSION="8.3"
+PHP_MIN="8.2"
+PHP_MAX="8.5"
 
 # Couleurs
 GREEN='\033[0;32m'
@@ -32,6 +34,22 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${CYAN}Démarrage de l'installation GLPI (Version ${GLPI_VERSION})...${NC}"
+
+# Validation de la version PHP choisie (doit être entre 8.2 et 8.5)
+php_version_valid() {
+    local version=$1 min=$2 max=$3
+    local lowest highest
+    lowest=$(printf '%s\n' "$min" "$version" | sort -V | head -n1)
+    highest=$(printf '%s\n' "$max" "$version" | sort -V | tail -n1)
+    [ "$lowest" = "$min" ] && [ "$highest" = "$max" ]
+}
+
+if ! php_version_valid "$PHP_VERSION" "$PHP_MIN" "$PHP_MAX"; then
+    echo -e "${RED}[!] Erreur : PHP_VERSION=${PHP_VERSION} est hors de la plage autorisée (${PHP_MIN} - ${PHP_MAX}).${NC}"
+    echo -e "${RED}    Modifiez la variable PHP_VERSION dans le script et relancez.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}[+] Version PHP validée : ${PHP_VERSION} (plage autorisée : ${PHP_MIN} - ${PHP_MAX})${NC}"
 
 # ==============================================================================
 # 1. SYSTÈME, DÉPENDANCES ET DÉPÔTS
