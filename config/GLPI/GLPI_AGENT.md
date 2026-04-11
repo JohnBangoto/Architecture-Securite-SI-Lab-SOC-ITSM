@@ -27,13 +27,13 @@ Avant tout déploiement d'agent, il faut activer la fonctionnalité d'inventaire
 
 Télécharger le fichier MSI de l'agent GLPI depuis le site officiel [https://glpi-project.org](https://glpi-project.org).
 
-**Fichier utilisé :** `GLPI-Agent-1.17-x64.msi` (~21,9 Mo)
+**Fichier utilisé :** `GLPI-Agent-1.15-x64.msi` (~21,9 Mo)
 
 **Informations du fichier :**
 
 | Propriété | Valeur |
 |-----------|--------|
-| Nom | GLPI-Agent-1.17-x64 |
+| Nom | GLPI-Agent-1.15-x64 |
 | Type | Windows Installer Package (.msi) |
 | Taille | 21,9 MB (23 027 712 octets) |
 | Emplacement | `C:\Users\Administrator\Downloads` |
