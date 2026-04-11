@@ -9,10 +9,7 @@
 
 La première étape consiste à se connecter au serveur `soc-server` en SSH et à créer le script d'installation de GLPI.
 
-```bash
-# Dernière connexion affichée
-Last login: Tue Apr  7 02:24:06 2026 from 41.83.125.48
-
+```
 # Création du script d'installation
 root@soc-server:~# nano install.sh
 ```
@@ -27,42 +24,6 @@ root@soc-server:~# nano install.sh
 
 Le script `install.sh` est un installateur automatisé pour **GLPI 11 sur Debian/Ubuntu**. Il est ouvert dans **GNU nano 6.2**.
 
-**En-tête du script :**
-
-```bash
-#!/bin/bash
-
-# =================================================================
-# GLPI 11 INSTALLER - DEBIAN 13 + DIRECT ACCESS
-# =================================================================
-
-# Stop script on first error
-set -e
-
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then
-  echo -e "\033[0;31mPlease run as root.\033[0m"
-  exit 1
-fi
-```
-
-**Variables de configuration :**
-
-| Variable | Valeur | Description |
-|----------|--------|-------------|
-| `GLPI_VERSION` | `"11.0.5"` | Version de GLPI à installer |
-| `DB_NAME` | `"glpidb"` | Nom de la base de données MariaDB |
-| `DB_USER` | `"glpiuser"` | Utilisateur de la base de données |
-| `DB_PASS` | `"StrongPassword123!"` | ⚠️ **À CHANGER** avant déploiement |
-| `GLPI_LANG` | `"fr_FR"` | Langue de l'interface |
-| `GLPI_URL` | `https://github.com/glpi-project/glpi/releases/download/...` | URL de téléchargement |
-| `INSTALL_DIR` | `"/var/www/html/glpi"` | Répertoire d'installation web |
-| `BACKUP_DIR` | `"/var/backups/glpi"` | Répertoire des sauvegardes |
-| `RETENTION_DAYS` | `14` | Rétention des sauvegardes (jours) |
-| `PHP_VERSION` | `"8.3"` | Version de PHP requise |
-
-> ⚠️ Le mot de passe `StrongPassword123!` est marqué **`# <--- CHANGE THIS`** dans le script — il doit impérativement être modifié avant tout déploiement en production. Le script inclut également une gestion des couleurs ANSI pour un affichage lisible en console.
-
 ![Script install.sh — Variables de configuration](../../docs/assets/GLPI/glpi_server/2.png)
 
 ---
@@ -75,28 +36,6 @@ Après sauvegarde du script, le rendre exécutable et le lancer :
 chmod +x install.sh
 ./install.sh
 ```
-
-**Sortie console :**
-
-```
-Starting GLPI Installation (Version 11.0.5)...
-[1/10] Updating system and dependencies...
-```
-
-Le script met à jour les dépôts APT et récupère les métadonnées des paquets depuis les miroirs configurés (Kamatera Ubuntu Jammy, Google Chrome, Zabbix 7.0) :
-
-```
-Hit:5  https://dl.google.com/linux/chrome/deb stable InRelease
-Hit:1  https://mirror.eu.kamatera.com/ubuntu jammy InRelease
-Get:2  https://mirror.eu.kamatera.com/ubuntu jammy-updates InRelease [128 kB]
-...
-Fetched 4,564 kB in 1s (3,907 kB/s)
-Reading package lists... Done
-Building dependency tree... Done
-```
-
-> L'exécution en **10 étapes numérotées** permet de suivre la progression. L'étape `[1/10]` correspond à la mise à jour du système (`apt update && apt upgrade`). Les paquets déjà à jour (`acl`, `cron`) sont signalés comme tels.
-
 ![Exécution install.sh — Étape 1/10](../../docs/assets/GLPI/glpi_server/3.png)
 
 ---
@@ -115,7 +54,7 @@ La page de **login** s'affiche avec :
 | **Password** | Mot de passe |
 | **Login source** | `GLPI internal database` *(par défaut)* |
 
-> Les identifiants par défaut de GLPI sont `glpi / glpi` pour l'administrateur. Il est impératif de changer ces mots de passe et de désactiver les comptes par défaut après la première connexion (voir section 9).
+> Les identifiants par défaut de GLPI sont `glpi / glpi` pour l'administrateur. Il est impératif de changer ces mots de passe et de désactiver les comptes par défaut après la première connexion.
 
 ![Page de login GLPI](../../docs/assets/GLPI/glpi_server/4.png)
 
@@ -123,44 +62,7 @@ La page de **login** s'affiche avec :
 
 ## 5. Dashboard GLPI — Vue d'ensemble
 
-Après connexion en tant que **Super-Admin**, le **tableau de bord** affiche une vue synthétique du parc et de l'assistance :
-
-**Inventaire du parc :**
-
-| Élément | Quantité |
-|---------|---------|
-| Logiciels | 114.7K |
-| Ordinateurs | 5.4K |
-| Matériels réseau | 1.2K |
-| Téléphones | 1.5K |
-| Licences | 130 |
-| Moniteurs | 3.8K |
-| Baies | 12 |
-| Imprimantes | 1.4K |
-
-**Données de gestion :**
-
-| Élément | Quantité |
-|---------|---------|
-| Utilisateurs | 4.2K |
-| Groupes | 129 |
-| Fournisseurs | 56 |
-| Documents | 38.0K |
-| Entités | 67 |
-| Profils | 15 |
-| Base de connaissances | 261 |
-| Projets | 7 |
-
-**Assistance (tickets) :**
-
-| Indicateur | Valeur |
-|-----------|--------|
-| Tickets total | 1.5K |
-| Tickets en retard | **2** |
-| Problèmes | 1.5K |
-| Changements | 1.5K |
-
-> Le graphique **"Statuts des tickets par mois"** montre l'historique de mai 2025 à février 2026, avec une majorité de tickets **Clos** (violet). L'utilisateur connecté est **Super-Admin** sur l'**Entité racine (Arborescence)**.
+Après connexion en tant que **Super-Admin**, le **tableau de bord** affiche une vue synthétique du parc et de l'assistance par defaut.
 
 ![Dashboard GLPI — Super-Admin](../../docs/assets/GLPI/glpi_server/5.png)
 
@@ -242,15 +144,6 @@ Les comptes par défaut (`glpi`, `post-only`, `tech`, `normal`) sont sélectionn
 > Le compte `glpi-system` n'est pas désactivé car il est utilisé en interne par GLPI pour ses tâches automatisées (cron, notifications, etc.).
 
 ![Désactivation des comptes par défaut](../../docs/assets/GLPI/glpi_server/9.png)
-
----
----
-
-## Remarques
-
-- Le script `install.sh` est un installateur en **10 étapes** couvrant la mise à jour système, l'installation des dépendances PHP, MariaDB, Apache2, le téléchargement et la configuration de GLPI.
-- La commande `php bin/console database:enable_timezones` est recommandée pour activer la gestion des fuseaux horaires après installation.
-- En production, utiliser un certificat **SSL/TLS** (Let's Encrypt ou CA interne) pour sécuriser l'accès HTTPS à l'interface GLPI.
 
 ---
 
