@@ -82,7 +82,7 @@
         <mxCell id="Lec-cPFfZ_Tv8LBdNJJA-45" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontColor=#000000;fontSize=11;fontStyle=1;labelBackgroundColor=#FFFFFF;" value="&lt;b data-path-to-node=&quot;7,0,0&quot; data-index-in-node=&quot;0&quot;&gt;IP WAN&lt;/b&gt;&lt;div&gt;&lt;b data-path-to-node=&quot;7,0,0&quot; data-index-in-node=&quot;0&quot;&gt;&amp;nbsp;(DHCP) :&lt;/b&gt; &lt;code data-path-to-node=&quot;7,0,0&quot; data-index-in-node=&quot;23&quot;&gt;192.168.1.?/24&lt;/code&gt;&lt;/div&gt;" vertex="1">
           <mxGeometry height="30" width="110" x="617" y="67" as="geometry" />
         </mxCell>
-        <mxCell id="Lec-cPFfZ_Tv8LBdNJJA-44" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontColor=#000000;fontSize=11;fontStyle=1" value="Passerelle par défaut, serveur DHCP pour le LAN, et filtrage des flux inter-VLAN." vertex="1">
+        <mxCell id="Lec-cPFfZ_Tv8LBdNJJA-44" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontColor=#000000;fontSize=11;fontStyle=1" value="REGLES" vertex="1">
           <mxGeometry height="30" width="170" x="694" y="160" as="geometry" />
         </mxCell>
         <mxCell id="Lec-cPFfZ_Tv8LBdNJJA-49" parent="1" style="swimlane;whiteSpace=wrap;html=1;labelBackgroundColor=default;" value="Centre d&#39;Opérations (SOC &amp;amp; ITSM)" vertex="1">
