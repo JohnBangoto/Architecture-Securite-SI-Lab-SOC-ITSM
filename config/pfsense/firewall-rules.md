@@ -16,9 +16,9 @@ Nous appliquons le principe du **moindre privilège** :
 | Action | Protocole | Source | Port | Destination | Description |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **PASS** | * | * | 443, 80, 22 | `DATA_ZONE Address` | **Anti-Lockout** : Accès à l'administration pfSense. |
-| **PASS** | TCP | `DATA_ZONE subnets` | `ports_web` | `194.146.38.216` | **GLPI** : Accès à la gestion de parc (VPS). |
-| **PASS** | TCP | `DATA_ZONE subnets` | 1514-1515 | `194.146.38.216` | **Wazuh Agents** : Flux SIEM vers le serveur ITSM (VPS). |
-| **PASS** | TCP | `DATA_ZONE subnets` | 10051 | `194.146.38.216` | **Zabbix Trapper** : Envoi des métriques vers le VPS. |
+| **PASS** | TCP | `DATA_ZONE subnets` | `ports_web` | `194.146.xx.xx` | **GLPI** : Accès à la gestion de parc (VPS). |
+| **PASS** | TCP | `DATA_ZONE subnets` | 1514-1515 | `194.146.xx.xx` | **Wazuh Agents** : Flux SIEM vers le serveur ITSM (VPS). |
+| **PASS** | TCP | `DATA_ZONE subnets` | 10051 | `194.146.xx.xx` | **Zabbix Trapper** : Envoi des métriques vers le VPS. |
 | **PASS** | TCP/UDP | `172.16.10.10` | * | Any | **DC25 Internet** : Accès Internet pour le contrôleur de domaine. |
 | **PASS** | TCP/UDP | `DATA_ZONE subnets` | * | Any | **Internet** : Accès général pour le segment DATA. |
 | **PASS** | ICMP | `DATA_ZONE subnets` | * | Any | **Ping** : Diagnostic réseau (Echorep, Echoreq). |

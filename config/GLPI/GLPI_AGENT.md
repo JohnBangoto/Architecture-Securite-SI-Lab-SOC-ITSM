@@ -1,6 +1,6 @@
 # 📦 Déploiement de l'Agent GLPI via GPO — Documentation
 
-> **Environnement :** Active Directory (domaine `lab.local`) · GLPI hébergé sur `194.146.38.216` · Windows Server 2025 (DC25) · Clients Windows 10 Pro
+> **Environnement :** Active Directory (domaine `lab.local`) · GLPI hébergé sur `194.146.xx.xx` · Windows Server 2025 (DC25) · Clients Windows 10 Pro
 
 ---
 ---

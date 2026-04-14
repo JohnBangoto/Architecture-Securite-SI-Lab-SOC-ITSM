@@ -1,0 +1,90 @@
+cat > /var/ossec/integrations/custom-glpi.py << 'EOF'
+#!/usr/bin/env python3
+import sys
+import json
+import requests
+import urllib3
+
+urllib3.disable_warnings()
+
+GLPI_URL = "http://194.146.xx.xx"
+USER_TOKEN = "ynwq1W5uYm7G2KL9d1XEgcloVHnDrn3AYwp98oK3"
+APP_TOKEN = "FSbET7LCH26sM5HsuZYXM3C2djZyDi5tVrU7kArO"
+
+# Mapping niveau Wazuh → urgence GLPI
+# Wazuh : 1-4 (faible), 5-7 (moyen), 8-11 (élevé), 12-15 (critique)
+# GLPI  : 1 (très faible), 2 (faible), 3 (moyen), 4 (élevé), 5 (très élevé)
+def get_urgency(level):
+    level = int(level)
+    if level >= 12:
+        return 5  # Très élevé
+    elif level >= 8:
+        return 4  # Élevé
+    elif level >= 5:
+        return 3  # Moyen
+    else:
+        return 2  # Faible
+
+def get_session_token():
+    headers = {
+        'Authorization': f'user_token {USER_TOKEN}',
+        'App-Token': APP_TOKEN,
+        'Content-Type': 'application/json'
+    }
+    r = requests.get(f'{GLPI_URL}/apirest.php/initSession', headers=headers, verify=False)
+    return r.json()['session_token']
+
+def create_ticket(alert):
+    session = get_session_token()
+    headers = {
+        'Session-Token': session,
+        'App-Token': APP_TOKEN,
+        'Content-Type': 'application/json'
+    }
+
+    rule    = alert.get('rule', {})
+    agent   = alert.get('agent', {})
+    data    = alert.get('data', {})
+    level   = rule.get('level', 5)
+    urgency = get_urgency(level)
+
+    title   = f"[Wazuh] {rule.get('description', 'Alerte sécurité')}"
+    content = f"""
+<b>Agent :</b> {agent.get('name', 'inconnu')} ({agent.get('ip', 'N/A')})<br>
+<b>Niveau :</b> {level}<br>
+<b>Règle :</b> {rule.get('id', 'N/A')} — {rule.get('description', 'N/A')}<br>
+<b>Groupes :</b> {', '.join(rule.get('groups', []))}<br>
+<b>Données :</b> {json.dumps(data, indent=2)}<br>
+<b>Timestamp :</b> {alert.get('timestamp', 'N/A')}
+"""
+
+    ticket = {
+        'input': {
+            'name': title,
+            'content': content,
+            'urgency': urgency,
+            'impact': urgency,
+            'priority': urgency,
+            'type': 1
+        }
+    }
+
+    r = requests.post(
+        f'{GLPI_URL}/apirest.php/Ticket',
+        headers=headers,
+        json=ticket,
+        verify=False
+    )
+    return r.json()
+
+if __name__ == '__main__':
+    try:
+        alert_file = open(sys.argv[1])
+        alert = json.load(alert_file)
+        alert_file.close()
+        result = create_ticket(alert)
+        print(f"Ticket créé : {result}")
+    except Exception as e:
+        print(f"Erreur : {e}", file=sys.stderr)
+        sys.exit(1)
+EOF
