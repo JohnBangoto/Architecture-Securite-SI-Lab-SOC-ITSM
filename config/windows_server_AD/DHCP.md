@@ -158,7 +158,6 @@ Une fois les deux étendues créées et activées, la console DHCP affiche la co
 | Étendue | Réseau | Statut |
 |---------|--------|--------|
 | **Zone DATA** | `172.16.10.0` | ✅ Active |
-| **Zone SOC** | `172.16.20.0` | ✅ Active |
 
 L'arborescence de chaque étendue contient les sous-dossiers standards :
 
@@ -169,16 +168,9 @@ Scope [172.16.10.0] Zone DATA
 ├── Reservations
 ├── Scope Options
 └── Policies
-
-Scope [172.16.20.0] Zone SOC
-├── Address Pool
-├── Address Leases
-├── Reservations
-├── Scope Options
-└── Policies
 ```
 
-> Les deux scopes sont **actifs simultanément**, permettant la distribution automatique d'adresses IP dans les deux zones réseau.
+> L'étendue est **active**, permettant la distribution automatique d'adresses IP dans la zone réseau DATA.
 
 ![Console DHCP - Deux étendues actives ](../../docs/assets/Windows_server_AD/DHCP/9.png)
 
@@ -188,7 +180,6 @@ Scope [172.16.20.0] Zone SOC
 ## Remarques
 
 - Les adresses `.1` à `.134` de la zone DATA sont réservées aux équipements statiques (serveurs, switchs, pare-feu).
-- La zone **SOC** (`172.16.20.0/24`) suit la même procédure de création que la zone DATA.
 
 ---
 

@@ -1,13 +1,13 @@
-# 🖥️ Configuration du Serveur SOC — VPS Kamatera Ubuntu 22.04
+# 🖥️ Configuration du Serveur ITSM — VPS Kamatera Ubuntu 22.04
 
-> **Environnement :** Kamatera Performance Cloud — Ubuntu 22.04.5 LTS — Serveur `SOC-SERVER`  
-> **Objectif :** Déployer et préparer un VPS cloud sur Kamatera servant de base à un SOC (Security Operations Center) destiné à accueillir les services **Zabbix**, **GLPI** et **Wazuh**
+> **Environnement :** Kamatera Performance Cloud — Ubuntu 22.04.5 LTS — Serveur `ITSM-SERVER`  
+> **Objectif :** Déployer et préparer un VPS cloud sur Kamatera destiné à accueillir les services de supervision et de gestion **Zabbix** et **GLPI**
 
 ---
 
 ## Partie A — Provisionnement du VPS sur Kamatera
 
-### 1. Création du serveur SOC-SERVER — Tasks Queue en cours
+### 1. Création du serveur ITSM-SERVER — Tasks Queue en cours
 
 **Accès :** Kamatera Console → My Cloud → **Servers** → Create New Server
 
@@ -15,7 +15,7 @@ Après soumission de la commande de création, la **Tasks Queue** affiche la tâ
 
 | Champ | Valeur |
 |-------|--------|
-| **Service** | `SOC-SERVER` |
+| **Service** | `ITSM-SERVER` |
 | **Command** | `Create Server` |
 | **Queued** | `**********` |
 | **Executed** | `********` |
@@ -23,17 +23,17 @@ Après soumission de la commande de création, la **Tasks Queue** affiche la tâ
 
 > La tâche passe à l'état **Executed** seulement 3 secondes après avoir été mise en **Queue** — Kamatera démarre le provisionnement quasi instantanément. La barre de progression à **70%** indique que le disque et le système d'exploitation sont en cours d'installation sur le nœud cloud.
 
-![kamatera - Tasks Queue SOC-SERVER à 70%](../../docs/assets/VPS/1.png)
+![kamatera - Tasks Queue ITSM-SERVER à 70%](../../docs/assets/VPS/1.png)
 
 ---
 
 ### 2. Finalisation de la création — Statut Success
 
-Une fois le provisionnement terminé, le serveur `SOC-SERVER` apparaît dans la liste **Server Management** avec l'état **Running** (indicateur vert) :
+Une fois le provisionnement terminé, le serveur `ITSM-SERVER` apparaît dans la liste **Server Management** avec l'état **Running** (indicateur vert) :
 
 | Champ | Valeur |
 |-------|--------|
-| **Service** | `SOC-SERVER` |
+| **Service** | `ITSM-SERVER` |
 | **Command** | `Create Server` |
 | **Queued** | `**********` |
 | **Executed** | `**********` |
@@ -43,7 +43,7 @@ Une fois le provisionnement terminé, le serveur `SOC-SERVER` apparaît dans la 
 
 > La création du serveur a pris environ **8 minutes 53 secondes** entre la mise en queue et la complétion. Le panneau latéral **Connection Credentials** confirme que le type d'accès est **SSH** — les identifiants (IP, login, mot de passe) y sont disponibles pour la première connexion.
 
-![kamatera - SOC-SERVER Running, Create Server Success](../../docs/assets/VPS/2.png)
+![kamatera - ITSM-SERVER Running, Create Server Success](../../docs/assets/VPS/2.png)
 
 ---
 
@@ -101,15 +101,15 @@ sudo reboot
 | `set-default multi-user.target` | Création du symlink `/etc/systemd/system/default.target` → `/lib/systemd/system/multi-user.target` |
 | `sudo reboot` | Connexion fermée par l'hôte distant |
 
-> Le **multi-user.target** est l'équivalent du runlevel 3 sous systemd — il démarre tous les services réseau et système **sans interface graphique**. C'est le mode optimal pour un serveur SOC : il libère les ressources CPU/RAM habituellement consommées par un environnement de bureau, cruciales pour des services comme **Wazuh** ou **Zabbix** qui sont gourmands en ressources.
+> Le **multi-user.target** est l'équivalent du runlevel 3 sous systemd — il démarre tous les services réseau et système **sans interface graphique**. C'est le mode optimal pour un serveur de production : il libère les ressources CPU/RAM habituellement consommées par un environnement de bureau.
 
 ![systemctl set-default multi-user.target — reboot](../../docs/assets/VPS/4.png)
 
 ---
 
-### 5. Configuration du pare-feu UFW — Ouverture des ports SOC
+### 5. Configuration du pare-feu UFW — Ouverture des ports requis
 
-Après redémarrage, configuration du pare-feu **UFW** avec les ports nécessaires aux services SOC :
+Après redémarrage, configuration du pare-feu **UFW** avec les ports nécessaires aux services :
 
 **Commandes exécutées :**
 
@@ -134,7 +134,7 @@ sudo ufw enable
 
 > Chaque règle est automatiquement créée en **IPv4 et IPv6** (`Rule added` + `Rule added (v6)`). L'activation de l'UFW avec `ufw enable` a nécessité une confirmation (`y`) car elle peut interrompre les connexions SSH actives — le port 22 ayant été autorisé en amont, la session reste maintenue. UFW est désormais **actif et persistant au démarrage**.
 
-![UFW — Règles SOC ajoutées, Firewall actif](../../docs/assets/VPS/5.png)
+![UFW — Règles ajoutées, Firewall actif](../../docs/assets/VPS/5.png)
 
 ---
 
@@ -145,7 +145,7 @@ sudo ufw enable
 | Composant | Valeur |
 |-----------|--------|
 | **Fournisseur** | Kamatera Performance Cloud |
-| **Nom du serveur** | `SOC-SERVER` |
+| **Nom du serveur** | `ITSM-SERVER` |
 | **Système d'exploitation** | Ubuntu 22.04.5 LTS |
 | **Kernel** | GNU/Linux 5.15.0-174-generic x86_64 |
 | **IP publique** | `194.146.**.**` |
@@ -163,7 +163,7 @@ sudo ufw enable
 | `1515/tcp` | Wazuh Agent Enrollment |
 | `10051/tcp` | Zabbix Active Agent / Trapper |
 
-### Services SOC prévus
+### Services déployés
 
 | Service | Rôle |
 |---------|------|
@@ -178,7 +178,7 @@ sudo ufw enable
 - Les captures sont issues d'un environnement cloud réel sur **Kamatera Performance Cloud**.
 - Le mode **multi-user.target** est recommandé pour tous les serveurs de production Linux sans interface graphique — il optimise les ressources pour les services métier.
 - Le port **10051/tcp** (Zabbix agent actif) pourra être ajouté ultérieurement si des agents passifs sont configurés.
-- Il est recommandé de **désactiver l'authentification par mot de passe SSH** et de basculer sur une authentification par **clé publique** avant la mise en production des services SOC.
+- Il est recommandé de **désactiver l'authentification par mot de passe SSH** et de basculer sur une authentification par **clé publique** avant la mise en production.
 - Les ports **1514** et **1515** sont spécifiques à **Wazuh Manager** — ils devront être accessibles depuis tous les hôtes sur lesquels un agent Wazuh sera déployé.
 
 ---

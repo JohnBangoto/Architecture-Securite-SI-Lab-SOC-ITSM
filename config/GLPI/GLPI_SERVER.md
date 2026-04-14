@@ -1,17 +1,17 @@
-# 🖥️ Installation et Configuration de GLPI — Serveur SOC
+# 🖥️ Installation et Configuration de GLPI — Serveur ITSM
 
-> **Environnement :** Debian/Ubuntu — Serveur `soc-server` — GLPI version **11.0.5**  
+> **Environnement :** Debian/Ubuntu — Serveur `itsm-server` — GLPI version **11.0.5**  
 > **Objectif :** Déployer GLPI via un script d'installation automatisé, puis sécuriser l'instance en créant un compte administrateur dédié et en désactivant les comptes par défaut
 
 ---
 
 ## 1. Connexion SSH et création du script d'installation
 
-La première étape consiste à se connecter au serveur `soc-server` en SSH et à créer le script d'installation de GLPI.
+La première étape consiste à se connecter au serveur `itsm-server` en SSH et à créer le script d'installation de GLPI.
 
 ```
 # Création du script d'installation
-root@soc-server:~# nano install.sh
+root@itsm-server:~# nano install.sh
 ```
 
 > La connexion est effectuée en tant que **root** depuis l'adresse `41.83.125.48`. L'éditeur `nano` est utilisé pour créer le script `install.sh` qui automatisera l'installation complète de GLPI et de ses dépendances.

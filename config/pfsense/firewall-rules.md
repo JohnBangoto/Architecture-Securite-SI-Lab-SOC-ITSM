@@ -1,40 +1,30 @@
 # 🛡️ Politique de Filtrage et Durcissement (Firewall Rules)
 
-L'infrastructure réseau repose sur une politique de **Default Deny**. Par défaut, tout trafic inter-zone est bloqué par le pare-feu pfSense. Seuls les flux critiques nécessaires à la supervision (SOC), aux services d'annuaire (AD) et au diagnostic réseau sont explicitement autorisés.
+L'infrastructure réseau repose sur une politique de **Default Deny**. Par défaut, tout trafic inter-zone est bloqué par le pare-feu pfSense. Seuls les flux critiques nécessaires aux services d'annuaire (AD), à l'accès applicatif (GLPI), à la supervision (Zabbix/Wazuh) et au diagnostic réseau sont explicitement autorisés.
 
 ## ⚖️ Philosophie de Sécurité
 Nous appliquons le principe du **moindre privilège** :
-* **Isolation stricte** : Les segments `DATA_ZONE` et `SOC_ZONE` ne communiquent que via des ports spécifiques.
+* **Isolation stricte** : Seuls les flux explicitement définis sont autorisés vers l'extérieur ou les services internes.
 * **Filtrage État (Stateful)** : Le pare-feu autorise automatiquement le trafic retour pour les connexions établies.
-* **Priorisation du Diagnostic** : Les règles ICMP (Ping) sont autorisées et journalisées sur chaque interface pour faciliter la maintenance et détecter toute tentative de reconnaissance (network scanning).
+* **Priorisation du Diagnostic** : Les règles ICMP (Ping) sont autorisées et journalisées pour faciliter la maintenance.
 
 ---
 
 ## 📋 Matrice des Flux : DATA_ZONE (Sortant)
-*Contrôle des communications depuis le parc Windows/Clients vers le SOC.*
+*Contrôle des communications depuis le parc Windows/Clients.*
 
 | Action | Protocole | Source | Port | Destination | Description |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **PASS** | TCP | `DATA_ZONE subnets` | 10051 | `172.16.20.100` | **Zabbix Trapper** : Envoi des métriques vers le SOC. |
-| **PASS** | ICMP | `DATA_ZONE subnets` | * | `*` | **Ping** : Diagnostic réseau autorisé. |
-| **PASS** | TCP | `DATA_ZONE subnets` | 1514-1515 | `172.16.20.100` | **Wazuh Agents** : Logs et Enrôlement. |
+| **PASS** | * | * | 443, 80, 22 | `DATA_ZONE Address` | **Anti-Lockout** : Accès à l'administration pfSense. |
+| **PASS** | TCP | `DATA_ZONE subnets` | `ports_web` | `194.146.38.216` | **GLPI** : Accès à la gestion de parc (VPS). |
+| **PASS** | TCP | `DATA_ZONE subnets` | 1514-1515 | `194.146.38.216` | **Wazuh Agents** : Flux SIEM vers le serveur ITSM (VPS). |
+| **PASS** | TCP | `DATA_ZONE subnets` | 10051 | `194.146.38.216` | **Zabbix Trapper** : Envoi des métriques vers le VPS. |
+| **PASS** | TCP/UDP | `172.16.10.10` | * | Any | **DC25 Internet** : Accès Internet pour le contrôleur de domaine. |
+| **PASS** | TCP/UDP | `DATA_ZONE subnets` | * | Any | **Internet** : Accès général pour le segment DATA. |
+| **PASS** | ICMP | `DATA_ZONE subnets` | * | Any | **Ping** : Diagnostic réseau (Echorep, Echoreq). |
 
-> **Note de durcissement** : Les règles "Default allow" d'usine ont été désactivées (grisées) pour forcer le passage par ces règles explicites.
+> **Note de durcissement** : Les règles "Default allow" d'usine ont été remplacées par des règles spécifiques et journalisées.
 ![Règles DATA_ZONE](../../docs/assets/pfsense/RData_zone.png)
-
----
-
-## 📋 Matrice des Flux : SOC_ZONE (Sortant)
-*Contrôle des communications depuis les serveurs de supervision vers l'infrastructure et l'extérieur.*
-
-| Action | Protocole | Source | Port | Destination | Description |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **PASS** | TCP/UDP | `SOC_ZONE subnets` | `AD_PORTS` | `172.16.10.10` | **Services AD** : Kerberos, LDAP, SMB via Alias. |
-| **PASS** | ICMP | `SOC_ZONE subnets` | * | `*` | **Ping** : Diagnostic réseau autorisé. |
-| **PASS** | TCP/UDP | `SOC_ZONE subnets` | 53 (DNS) | `172.16.10.10` | **DNS** : Résolution via le DC25. |
-| **PASS** | TCP | `SOC_ZONE subnets` | 443 | Any | **Updates** : Mises à jour des signatures (WAN). |
-
-> ![Règles SOC_ZONE](../../docs/assets/pfsense/RSOC_ZONE.png)
 
 ---
 
@@ -56,6 +46,5 @@ L'interface WAN est configurée pour rejeter systématiquement le trafic provena
 
 ---
 
-* **Journalisation (Logging)** : L'option "Log" est activée sur chaque règle métier. Cette visibilité est essentielle pour alimenter le SIEM (Wazuh) et permettre la détection d'anomalies réseau.
-* **Anti-Lockout** : Une règle spécifique protège l'accès à l'interface d'administration (80/443) pour éviter toute perte de contrôle du pare-feu depuis le segment d'administration.
-
+* **Journalisation (Logging)** : L'option "Log" est activée sur chaque règle métier pour assurer une visibilité complète sur les flux réseau.
+* **Anti-Lockout** : Une règle spécifique protège l'accès à l'interface d'administration (80/443/22) pour éviter toute perte de contrôle du pare-feu depuis le segment d'administration.

@@ -1,0 +1,1 @@
+![alt text](../../docs/assets/wazuh/1.png)
