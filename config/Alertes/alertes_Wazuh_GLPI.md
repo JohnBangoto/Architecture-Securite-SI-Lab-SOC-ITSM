@@ -47,8 +47,8 @@ import urllib3
 urllib3.disable_warnings()
 
 GLPI_URL    = "http://194.146.xx.xx"
-USER_TOKEN  = "ynwq1W5uYm7G2KL9d1XEgcloVHnDrn3AYwp98oK3"
-APP_TOKEN   = "FSbET7LCH26sM5HsuZYXM3C2djZyDi5tVrU7kAr0"
+USER_TOKEN  = "ynwq1W5uYm7G2KL9d1XEgcloVHnDrn3AYwp9........."
+APP_TOKEN   = "FSbET7LCH26sM5HsuZYXM3C2djZyDi5t.........."
 ```
 
 **Mapping des niveaux de sévérité Wazuh → urgence GLPI :**
