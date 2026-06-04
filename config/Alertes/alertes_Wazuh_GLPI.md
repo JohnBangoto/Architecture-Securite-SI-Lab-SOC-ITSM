@@ -4,7 +4,6 @@
 
 ---
 
-
 ## Prérequis
 
 Avant de configurer cette intégration, s'assurer que :
@@ -15,10 +14,80 @@ Avant de configurer cette intégration, s'assurer que :
 
 ---
 
-## 1. Création du script d'intégration custom-glpi.py
+## 1. Création de l'utilisateur GLPI dédié
 
-**Serveur :** `root@soc-server`  
-**Chemin :** `/var/ossec/integrations/custom-glpi.py`
+Créer un utilisateur **dédié à Wazuh** afin de distinguer les tickets Wazuh des tickets des autres intégrations (ex: Zabbix).
+
+> ⚠️ Ne pas utiliser un compte admin personnel ni un compte partagé avec une autre intégration — chaque intégration doit avoir son propre utilisateur pour une meilleure traçabilité.
+
+**Chemin GLPI :** `Administration → Utilisateurs → +`
+
+| Champ | Valeur |
+|-------|--------|
+| Identifiant | `wazuh-api` |
+| Profil | Super-Admin |
+| Entité | Entité racine |
+| Activé | Oui |
+
+**Récupérer les tokens :**
+
+```
+Cliquer sur wazuh-api
+      ↓
+Onglet "Accès distant à l'API"
+      ↓
+Regénérer le token si nécessaire
+```
+
+| Token | Portée |
+|-------|--------|
+| **User-Token** | Unique par utilisateur |
+| **App-Token** | `Configuration → Générale → API` — commun à toute l'application |
+
+**Tester la connexion API :**
+
+```bash
+curl -X GET "http://194.146.xx.xx/apirest.php/initSession" \
+     -H "Authorization: user_token VOTRE_USER_TOKEN" \
+     -H "App-Token: VOTRE_APP_TOKEN"
+```
+
+Réponse attendue :
+```json
+{"session_token":"xxxxxxxxxxxxxxxxxxxx"}
+```
+
+**Tester la création d'un ticket :**
+
+```bash
+curl -X POST "http://194.146.xx.xx/apirest.php/Ticket" \
+     -H "Content-Type: application/json" \
+     -H "Session-Token: VOTRE_SESSION_TOKEN" \
+     -H "App-Token: VOTRE_APP_TOKEN" \
+     -d '{
+       "input": {
+         "name": "Test Wazuh - Ticket automatique",
+         "content": "Ceci est un ticket de test généré par Wazuh",
+         "priority": 3,
+         "type": 1
+       }
+     }'
+```
+
+Réponse attendue :
+```json
+{"id": 148, "message": "Élément ajouté : Test Wazuh - Ticket automatique"}
+```
+
+---
+
+## 2. Création du script d'intégration custom-glpi.py
+
+**Serveur :** `root@soc-server`
+**Chemin système :** `/var/ossec/integrations/custom-glpi.py`
+**Chemin projet :** `src/integrations/custom-glpi.py`
+
+> 💡 Le script est versionné dans l'arborescence du projet. Le fichier déployé sur le serveur est une copie de `src/integrations/custom-glpi.py`.
 
 Le script Python est créé directement sur le serveur Wazuh via un heredoc. Il assure la réception des alertes Wazuh et leur transmission à l'API GLPI sous forme de tickets.
 
@@ -51,26 +120,26 @@ USER_TOKEN  = "ynwq1W5uYm7G2KL9d1XEgcloVHnDrn3AYwp9........."
 APP_TOKEN   = "FSbET7LCH26sM5HsuZYXM3C2djZyDi5t.........."
 ```
 
-**Mapping des niveaux de sévérité Wazuh → urgence GLPI :**
+**Mapping des niveaux de sévérité Wazuh → priorité GLPI :**
 
-| Niveau Wazuh | Description | Urgence GLPI | Label |
-|:------------:|-------------|:------------:|-------|
-| 1 – 4 | Faible | 2 | Faible |
-| 5 – 7 | Moyen | 3 | Moyen |
-| 8 – 11 | Élevé | 4 | Élevé |
-| ≥ 12 | Critique | 5 | Très élevé |
+| Niveau Wazuh | Description | Priorité GLPI | Label |
+|:---:|---|:---:|---|
+| ≥ 13 | Critique | 6 | Très haute |
+| 10 – 12 | Élevé | 5 | Haute |
+| 7 – 9 | Moyen-haut | 4 | Moyenne haute |
+| < 7 | Moyen | 3 | Moyenne |
 
 ```python
-def get_urgency(level):
+def get_priority(level):
     level = int(level)
-    if level >= 12:
-        return 5  # Très élevé
-    elif level >= 8:
-        return 4  # Élevé
-    elif level >= 5:
-        return 3  # Moyen
+    if level >= 13:
+        return 6  # Très haute
+    elif level >= 10:
+        return 5  # Haute
+    elif level >= 7:
+        return 4  # Moyenne haute
     else:
-        return 2  # Faible
+        return 3  # Moyenne
 
 def get_session_token():
     headers = {
@@ -80,14 +149,15 @@ def get_session_token():
     }
 ```
 
-> 💡 La fonction `get_urgency()` traduit les niveaux de sévérité Wazuh (1–15) en niveaux d'urgence GLPI (1–5), permettant une priorisation cohérente des tickets de sécurité.
+> 💡 La fonction `get_priority()` traduit les niveaux de sévérité Wazuh (1–15) en niveaux de priorité GLPI (3–6), permettant une priorisation cohérente des tickets de sécurité.
 
 ![Création script custom-glpi.py](../../docs/assets/GLPI-WAZUH/1.png)
+
 ---
 
-## 2. Configuration de l'intégration dans ossec.conf
+## 3. Configuration de l'intégration dans ossec.conf
 
-**Chemin :** `/var/ossec/etc/ossec.conf`  
+**Chemin :** `/var/ossec/etc/ossec.conf`
 **Éditeur :** `nano`
 
 Le bloc `<integration>` est ajouté à la fin du fichier de configuration principal de Wazuh, juste avant la balise fermante `</ossec_config>`.
@@ -120,7 +190,7 @@ Le bloc `<integration>` est ajouté à la fin du fichier de configuration princi
 
 ---
 
-## 3. Permissions et dépendances du script
+## 4. Permissions et dépendances du script
 
 **Serveur :** `root@soc-server`
 
@@ -170,7 +240,7 @@ systemctl restart wazuh-manager
 
 ---
 
-## 4. Liste des tickets Wazuh générés dans GLPI
+## 5. Liste des tickets Wazuh générés dans GLPI
 
 **Chemin GLPI :** `Assistance > Tickets`
 
@@ -204,7 +274,7 @@ Une fois l'intégration opérationnelle, les alertes Wazuh de niveau ≥ 7 sont 
 
 ---
 
-## 5. Détail d'un ticket Wazuh dans GLPI
+## 6. Détail d'un ticket Wazuh dans GLPI
 
 **Chemin GLPI :** `Assistance > Tickets > Ticket #762`
 
@@ -237,7 +307,7 @@ Timestamp : 2026-04-14T06:27:03.218+0000
 | Champ | Valeur | Signification |
 |-------|--------|---------------|
 | Agent | `soc-server` | Machine source de l'alerte |
-| Niveau | `10` | Sévérité élevée (→ urgence GLPI : 4) |
+| Niveau | `10` | Sévérité élevée (→ priorité GLPI : 5 — Haute) |
 | Règle | `2502` | Règle Wazuh : échecs de connexion répétés |
 | Groupes | `syslog, access_control, authentication_failed` | Catégories de la règle |
 | srcip | `45.148.10.147` | IP source de l'attaque |
@@ -248,23 +318,5 @@ Timestamp : 2026-04-14T06:27:03.218+0000
 
 ![Détail ticket Wazuh GLPI](../../docs/assets/GLPI-WAZUH/5.png)
 
-
 ---
 
-## Configuration ossec.conf — Bloc complet
-
-```xml
-<integration>
-    <name>custom-glpi</name>
-    <hook_url>http://194.146.xx.xx/apirest.php</hook_url>
-    <level>7</level>
-    <alert_format>json</alert_format>
-</integration>
-```
-
-> Placer ce bloc juste avant `</ossec_config>` dans `/var/ossec/etc/ossec.conf`, puis redémarrer le manager :
-> ```bash
-> systemctl restart wazuh-manager
-> ```
-
----
