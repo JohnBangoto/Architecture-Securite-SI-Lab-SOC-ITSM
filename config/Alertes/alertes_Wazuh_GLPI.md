@@ -85,9 +85,8 @@ Réponse attendue :
 
 **Serveur :** `root@soc-server`
 **Chemin système :** `/var/ossec/integrations/custom-glpi.py`
-**Chemin projet :** `src/integrations/custom-glpi.py`
 
-> 💡 Le script est versionné dans l'arborescence du projet. Le fichier déployé sur le serveur est une copie de `src/integrations/custom-glpi.py`.
+> 💡 Le script est versionné dans le dossier 'script' du projet. Le fichier déployé sur le serveur est une copie de `src/integrations/custom-glpi.py`.
 
 Le script Python est créé directement sur le serveur Wazuh via un heredoc. Il assure la réception des alertes Wazuh et leur transmission à l'API GLPI sous forme de tickets.
 

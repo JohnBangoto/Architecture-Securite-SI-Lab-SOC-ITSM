@@ -66,7 +66,7 @@ apt install fail2ban -y
 
 ### 3.2 Configuration avancée — jail.local
 
-> 💡 Le script complet est disponible dans le dossier `scripts/fail2ban/jail.local` du projet.
+> 💡 Le script complet est disponible dans le dossier `scripts` du projet.
 
 **Commande de déploiement :**
 
@@ -145,7 +145,7 @@ bantime  = 86400
 EOF
 ```
 
-![Script jail.local complet](../../docs/assets/Durcissement/fail2ban_script.png)
+![Script jail.local complet](../../docs/assets/VPS/fail2ban_script.png)
 
 **Filtres personnalisés créés :**
 
