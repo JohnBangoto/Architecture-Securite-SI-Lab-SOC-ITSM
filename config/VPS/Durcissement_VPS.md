@@ -4,7 +4,6 @@
 
 ---
 
-
 ## 1. Audit initial — SSH & Pare-feu
 
 Avant toute modification, on réalise un audit de l'état initial du serveur : vérification de la configuration SSH et des règles UFW.
@@ -46,9 +45,11 @@ ufw limit 22/tcp
 
 ---
 
-## 3. Installation de Fail2Ban
+## 3. Installation et configuration de Fail2Ban
 
-Installation de Fail2Ban pour protéger le serveur contre les attaques par force brute.
+Installation de Fail2Ban et configuration avancée pour protéger le serveur contre les attaques par force brute sur SSH, Apache et l'API GLPI.
+
+### 3.1 Installation
 
 ![Installation Fail2Ban](../../docs/assets/Durcissement/3.png)
 
@@ -63,11 +64,162 @@ apt install fail2ban -y
 
 ---
 
+### 3.2 Configuration avancée — jail.local
+
+> 💡 Le script complet est disponible dans le dossier `scripts/fail2ban/jail.local` du projet.
+
+**Commande de déploiement :**
+
+```bash
+cat > /etc/fail2ban/jail.local << 'EOF'
+[DEFAULT]
+# Ignorer ces IPs (réseau local + VPN)
+ignoreip = 127.0.0.1/8 ::1
+
+# Ban incrémental pour récidivistes
+bantime.increment = true
+bantime.multiplier = 24
+bantime.maxtime = -1
+
+# Paramètres par défaut
+bantime  = 86400
+findtime = 600
+maxretry = 3
+backend  = auto
+
+# ── SSH ───────────────────────────────────────────────────
+[sshd]
+enabled  = true
+port     = ssh
+filter   = sshd
+logpath  = /var/log/auth.log
+maxretry = 3
+bantime  = 86400
+
+# ── APACHE ────────────────────────────────────────────────
+[apache-auth]
+enabled  = true
+port     = http,https
+filter   = apache-auth
+logpath  = /var/log/apache2/error.log
+maxretry = 3
+
+[apache-badbots]
+enabled  = true
+port     = http,https
+filter   = apache-badbots
+logpath  = /var/log/apache2/access.log
+maxretry = 2
+bantime  = 172800
+
+[apache-noscript]
+enabled  = true
+port     = http,https
+filter   = apache-noscript
+logpath  = /var/log/apache2/access.log
+maxretry = 3
+
+[apache-overflows]
+enabled  = true
+port     = http,https
+filter   = apache-overflows
+logpath  = /var/log/apache2/access.log
+maxretry = 2
+
+[apache-scan]
+enabled  = true
+port     = http,https
+filter   = apache-scan
+logpath  = /var/log/apache2/access.log
+maxretry = 5
+bantime  = 172800
+
+# ── GLPI ──────────────────────────────────────────────────
+[glpi]
+enabled  = true
+port     = http,https
+filter   = glpi
+logpath  = /var/log/apache2/access.log
+maxretry = 5
+bantime  = 86400
+EOF
+```
+
+![Script jail.local complet](../../docs/assets/Durcissement/fail2ban_script.png)
+
+**Filtres personnalisés créés :**
+
+```bash
+# Filtre scan .env (attaques de reconnaissance)
+cat > /etc/fail2ban/filter.d/apache-scan.conf << 'EOF'
+[Definition]
+failregex = ^<HOST> .* "(GET|POST|HEAD).*(\.env|\.git|\.config|wp-admin|phpMyAdmin).*" (404|400|403) .*$
+ignoreregex =
+EOF
+
+# Filtre API GLPI
+cat > /etc/fail2ban/filter.d/glpi.conf << 'EOF'
+[Definition]
+failregex = ^<HOST> .* "POST /apirest\.php.*" (401|403) .*$
+ignoreregex =
+EOF
+```
+
+**Paramètres clés :**
+
+| Paramètre | Valeur | Description |
+|---|---|---|
+| `bantime` | `86400` | Ban de 24h par défaut |
+| `bantime.increment` | `true` | Ban croissant pour récidivistes |
+| `bantime.multiplier` | `24` | Multiplicateur x24 à chaque récidive |
+| `bantime.maxtime` | `-1` | Ban permanent pour les récidivistes |
+| `maxretry` | `3` | 3 tentatives avant ban |
+| `findtime` | `600` | Fenêtre de détection de 10 min |
+
+**Jails actifs et leur protection :**
+
+| Jail | Protection | Bantime |
+|---|---|---|
+| `sshd` | Brute force SSH | 24h + incrémental |
+| `apache-auth` | Auth Apache | 24h |
+| `apache-badbots` | Bots malveillants | 48h |
+| `apache-noscript` | Injection scripts | 24h |
+| `apache-overflows` | Buffer overflow | 24h |
+| `apache-scan` | Scan `.env` / `.git` | 48h |
+| `glpi` | API GLPI brute force | 24h |
+
+---
+
+### 3.3 Démarrage et vérification
+
+```bash
+systemctl restart fail2ban
+systemctl enable fail2ban
+
+# Vérifier tous les jails actifs
+fail2ban-client status
+
+# Vérifier chaque jail
+fail2ban-client status sshd
+fail2ban-client status apache-auth
+fail2ban-client status apache-badbots
+fail2ban-client status apache-scan
+fail2ban-client status glpi
+```
+
+![Vérification jails Fail2Ban](../../docs/assets/VPS/fail2ban_verification.png)
+
+**Résultat :** Les 7 jails sont **actifs et opérationnels** ✅
+
+> ⚠️ L'erreur `Failed to access socket path` visible en début de sortie est sans importance — elle indique simplement que Fail2Ban n'avait pas encore fini de démarrer au moment de la première requête. Tous les jails sont correctement chargés ensuite.
+
+---
+
 ## 4. Mises à jour automatiques & Vérification UFW
 
 Installation des mises à jour de sécurité automatiques et vérification de l'état final du pare-feu.
 
-![Unattended upgrades et UFW final](../../docs/assets/Durcissement/4.png)
+![Unattended upgrades et UFW final](../../docs/assets/VPS/fail2ban_verification.png)
 
 ```bash
 apt install unattended-upgrades -y
