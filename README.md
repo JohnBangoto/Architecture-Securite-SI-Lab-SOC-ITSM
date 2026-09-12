@@ -2,7 +2,7 @@
 
 > Conception, déploiement et exploitation d'une infrastructure complète avec segmentation réseau (pfSense), annuaire (Active Directory), supervision (Zabbix), SIEM/EDR (Wazuh) et ticketing automatisé (GLPI) — en environnement lab isolé.
 
-![Architecture du lab](architecture/architecture-soc-segmentation.png)
+![Architecture du lab](architecture/architecture-soc-segmentation.svg)
 
 ---
 
